@@ -3,10 +3,7 @@ mod trojan;
 mod tls;
 mod common;
 
-use tokio::sync::mpsc;
-
-use tokio::runtime::Runtime;
-use tokio::sync::mpsc::{channel, Sender};
+use tokio::sync::mpsc::Receiver;
 
 #[derive(Debug)]
 pub struct Proxy {
@@ -34,55 +31,30 @@ impl Proxy {
         }
     }
 
-    pub fn start(&self) -> Option<mpsc::Sender<bool>> {
+    pub async fn start(&self,recv: &mut Receiver<bool>) -> tokio::io::Result<()> {
         log::info!("Trojan start...");
         let addr = format!("{}:{}",self.client_addr,self.client_port);
 
-        let (send, mut recv) = channel::<bool>(1);
-
-        let server_addr = self.server_addr.clone();
-        let server_port = self.server_port;
-        let sni = self.sni.clone();
-        let passwd = self.passwd.clone();
-        std::thread::spawn(move ||{
-            let runtime = Runtime::new().unwrap();
-            runtime.block_on(async {
-                let acceptor = socks5::Socks5Acceptor::new(&addr).await.expect("xxx");
-                loop {
-                    log::info!("do accept");
-                    tokio::select! {
-                        Ok((stream,addr))  = acceptor.accept() => {
-                            log::info!("Received new connection from {}", addr);
-                            let tls_connector = match tls::TrojanTlsConnector::new(sni.clone(), format!("{}:{}",server_addr,server_port)) {
-                                Ok(tls_connector) => tls_connector,
-                                Err(_) => {return;},
-                            };
-                            let mut connector = match trojan::TrojanConnector::new(passwd.as_bytes(), tls_connector) {
-                                Ok(connector) => connector,
-                                Err(_) => {return;},
-                            };
-                
-                            tokio::spawn(async move {
-                                let trojan_stream = connector.connect(&addr).await.expect("connect faile.");
-                                trojan::relay_tcp(trojan_stream,stream).await;
-                            });
-                        },
-                        _ = recv.recv() => {log::info!("has receive."); return;}
-                    }
-                }
-            });
-        });
+        let acceptor = socks5::Socks5Acceptor::new(&addr).await?;
+        loop {
+            log::info!("do accept");
+            tokio::select! {
+                Ok((stream,addr))  = acceptor.accept() => {
+                    log::info!("Received new connection from {}", addr);
+                    let tls_connector = tls::TrojanTlsConnector::new(self.sni.clone(), format!("{}:{}",self.server_addr,self.server_port))?;
+                    let mut connector = trojan::TrojanConnector::new(self.passwd.as_bytes(), tls_connector)?;
         
-        log::info!("start end with send.");
-        return Some(send);
-    }
-
-    pub fn stop(&self,send:&Sender<bool>) {
-        let runtime = Runtime::new().unwrap();
-        runtime.block_on(async {
-            send.send(true).await.expect("send failed");
-            log::info!("send end...");
-        });
+                    tokio::spawn(async move {
+                        let trojan_stream = connector.connect(&addr).await.expect("connect faile.");
+                        trojan::relay_tcp(trojan_stream,stream).await;
+                    });
+                },
+                _ = recv.recv() => {
+                    log::info!("receive stop signal.");
+                    return Ok(());
+                }
+            }
+        }
     }
 }
 
