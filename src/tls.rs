@@ -12,7 +12,7 @@ pub struct TrojanTlsConnector {
 }
 
 impl TrojanTlsConnector {
-    pub fn new(sni:String,server_addr: String) -> io::Result<Self> {
+    pub fn new(sni:&str,server_addr: &str,server_port: u16) -> io::Result<Self> {
         let mut root_store = RootCertStore::empty();
         root_store.add_server_trust_anchors(webpki_roots::TLS_SERVER_ROOTS.0.iter().map(|ta| {
             rustls::OwnedTrustAnchor::from_subject_spki_name_constraints(
@@ -28,8 +28,12 @@ impl TrojanTlsConnector {
             .with_no_client_auth();
 
         Ok(TrojanTlsConnector {
-            sni,
-            server_addr,
+            sni: if sni.is_empty() {
+                server_addr.to_string()
+            } else {
+                sni.to_string()
+            },
+            server_addr: format!("{}:{}",server_addr,server_port),
             tls_config: Arc::new(config),
         })
     }

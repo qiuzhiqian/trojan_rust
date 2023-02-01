@@ -41,7 +41,7 @@ impl Proxy {
             tokio::select! {
                 Ok((stream,addr))  = acceptor.accept() => {
                     log::info!("Received new connection from {}", addr);
-                    let tls_connector = tls::TrojanTlsConnector::new(self.sni.clone(), format!("{}:{}",self.server_addr,self.server_port))?;
+                    let tls_connector = tls::TrojanTlsConnector::new(&self.sni, &self.server_addr,self.server_port)?;
                     let mut connector = trojan::TrojanConnector::new(self.passwd.as_bytes(), tls_connector)?;
         
                     tokio::spawn(async move {
