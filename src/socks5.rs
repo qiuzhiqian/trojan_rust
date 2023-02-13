@@ -52,12 +52,10 @@ impl Socks5Acceptor {
         };
     
         let nm_method = rd.read_u8().await?;
-        println!("command is {}",nm_method);
     
         let mut methods = Vec::new();
-        for i in 0..nm_method {
+        for _ in 0..nm_method {
             let method_index = rd.read_u8().await?;
-            println!("method[{}] is {}",i,method_index);
             methods.push(method_index);
         }
     
@@ -66,7 +64,6 @@ impl Socks5Acceptor {
     
     async fn auth_ack<T: AsyncWrite + Unpin + Send>(wd: &mut T) -> io::Result<()> {
         let buff = vec![VERSION,AUTH_METHOD_NONE];
-        println!("buff {:#?}",buff);
         wd.write_all(buff.as_slice()).await?;
         wd.flush().await?;
         return io::Result::Ok(());

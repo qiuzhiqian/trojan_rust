@@ -15,6 +15,11 @@ pub struct TrojanConnector {
     hash: [u8; HASH_STR_LEN],
 }
 
+enum TROJAN_CMD {
+    CONNECT = 0x01,
+    UDP = 0x03,
+}
+
 impl TrojanConnector {
     pub fn new(passwd: &[u8], inner: TrojanTlsConnector) -> io::Result<Self> {
         let hash_string= Sha224::digest(passwd)
@@ -31,7 +36,7 @@ impl TrojanConnector {
     }
     pub async fn connect(&mut self,addr:&IpAddress) -> io::Result<TlsStream<tokio::net::TcpStream>> {
         let mut stream = self.inner.connect_tcp().await?;
-        handshake(&mut stream,self.hash[..].as_mut(),0x01,addr).await?;
+        handshake(&mut stream,self.hash[..].as_mut(),TROJAN_CMD::CONNECT,addr).await?;
         Ok(stream)
     }
 }
@@ -39,13 +44,13 @@ impl TrojanConnector {
 async fn handshake<T: AsyncWrite + Unpin>(
     stream: &mut T,
     passwd: &[u8],
-    command: u8,
+    command: TROJAN_CMD,
     addr: &IpAddress,
 ) -> io::Result<()> {
     // Write request header
     stream.write_all(passwd).await?;
     stream.write_u16(CRLF).await?;
-    stream.write_u8(command).await?;
+    stream.write_u8(command as u8).await?;
     match addr {
         IpAddress::IpAddr(SocketAddr::V4(ipv4)) => {
             stream.write_u8(0x01).await?;
