@@ -70,6 +70,7 @@ async fn handshake<T: AsyncWrite + Unpin>(
         }
     }
     stream.write_u16(CRLF).await?;
+
     stream.flush().await?;
 
     Ok(())
@@ -78,8 +79,8 @@ async fn handshake<T: AsyncWrite + Unpin>(
 pub async fn relay_tcp<T: AsyncRead + AsyncWrite + Unpin + Send,U:AsyncRead + AsyncWrite + Unpin + Send>(a: T, b: U) {
     let (mut a_rx, mut a_tx) = tokio::io::split(a);
     let (mut b_rx, mut b_tx) = tokio::io::split(b);
-    let t1 = copy_tcp(&mut a_rx, &mut b_tx);
-    let t2 = copy_tcp(&mut b_rx, &mut a_tx);
+    let t1 = copy_tcp(&mut a_rx, &mut b_tx, "receive");
+    let t2 = copy_tcp(&mut b_rx, &mut a_tx,"send");
     let e = tokio::select! {
         e = t1 => {e}
         e = t2 => {e}
@@ -91,11 +92,13 @@ pub async fn relay_tcp<T: AsyncRead + AsyncWrite + Unpin + Send,U:AsyncRead + As
     let mut b = b_rx.unsplit(b_tx);
     let _ = a.shutdown().await;
     let _ = b.shutdown().await;
+    log::info!("relay_tcp end");
 }
 
 async fn copy_tcp<R: AsyncRead + Unpin, W: AsyncWrite + Unpin>(
     r: &mut R,
     w: &mut W,
+    tag: &str,
 ) -> io::Result<()> {
     let mut buf = [0u8; 16384];
     loop {
@@ -103,6 +106,11 @@ async fn copy_tcp<R: AsyncRead + Unpin, W: AsyncWrite + Unpin>(
         if len == 0 {
             break;
         }
+        log::info!("[{}] raw buff: ",tag);
+        //for i in &buf[..len] {
+        //    print!("{:#X} ",i);
+        //}
+        //println!("");
         
         w.write(&buf[..len]).await?;
         w.flush().await?;

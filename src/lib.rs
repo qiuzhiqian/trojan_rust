@@ -3,7 +3,7 @@ mod trojan;
 mod tls;
 mod common;
 
-use tokio::sync::mpsc::Receiver;
+use tokio::{sync::mpsc::Receiver, io::{AsyncReadExt, AsyncWriteExt}};
 
 #[derive(Debug)]
 pub struct Proxy {
@@ -39,13 +39,14 @@ impl Proxy {
         loop {
             log::info!("do accept");
             tokio::select! {
-                Ok((stream,addr))  = acceptor.accept() => {
+                Ok((mut stream,addr))  = acceptor.accept() => {
                     log::info!("Received new connection from {}", addr);
                     let tls_connector = tls::TrojanTlsConnector::new(&self.sni, &self.server_addr,self.server_port)?;
                     let mut connector = trojan::TrojanConnector::new(self.passwd.as_bytes(), tls_connector)?;
-        
+                    let trojan_stream = connector.connect(&addr).await.expect("connect failed.");
+                    socks5::Socks5Acceptor::request_ack(&mut stream).await?;
+                    log::info!("socks5 connect success");
                     tokio::spawn(async move {
-                        let trojan_stream = connector.connect(&addr).await.expect("connect faile.");
                         trojan::relay_tcp(trojan_stream,stream).await;
                     });
                 },
@@ -56,5 +57,50 @@ impl Proxy {
             }
         }
     }
+}
+
+pub async fn client_start(addr:&str,port:u16,proxy_ip:&str, proxy_port: u16) -> tokio::io::Result<()> {
+    let connector = socks5::Socks5Connector::new(proxy_ip,proxy_port);
+    let mut stream = connector.connect(addr,port).await.unwrap();
+    //let mut stream = tokio::net::TcpStream::connect("110.242.68.3:80").await?;
+    stream.set_nodelay(true)?;
+    println!("get stream");
+    let content = vec![
+        "GET / HTTP/1.1",
+        "Host: www.google.com",
+        "User-Agent: curl/7.64.0",
+        "Accept: */*",
+    ];
+    for i in content {
+        stream.write_all(i.to_string().as_bytes()).await?;
+        stream.write_u16(0x0D0A).await?;
+    }
+    stream.write_u16(0x0D0A).await?;
+    println!("send end");
+    // GET http://www.google.com/ HTTP/1.1
+    // Accept: */*
+    // User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36
+    let mut frame = String::new();
+    //let mut has_response = false;
+    loop {
+        let mut buf = Vec::new();
+        let len = stream.read_buf(&mut buf).await?;
+        if len == 0 {
+            println!("[client] read end...");
+            break;
+        }
+        println!("len={}",len);
+        //frame.append(&mut buf);
+        frame = frame + &String::from_utf8(buf).unwrap();
+        println!("frame:{}",frame);
+
+        let lines:Vec<&str> = frame.split("\r\n").collect();
+        if !lines.is_empty() && lines[0].contains("OK") {
+            println!("response ok");
+            break;
+        }
+    }
+    //println!("[client] frame[{}]: {}",frame.clone().len(), String::from_utf8(frame).unwrap());
+    Ok(())
 }
 
