@@ -17,3 +17,8 @@ async fn main() -> io::Result<()> {
 # 特性
 - 服务器端使用tls连接
 - 当前只支持TCP
+
+# 协议参考
+[trojan protocol](https://trojan-gfw.github.io/trojan/protocol)
+
+[socks5 protocol](https://www.rfc-editor.org/rfc/rfc1928)
