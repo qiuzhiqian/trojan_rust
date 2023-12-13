@@ -92,7 +92,7 @@ pub async fn relay_tcp<T: AsyncRead + AsyncWrite + Unpin + Send,U:AsyncRead + As
     let mut b = b_rx.unsplit(b_tx);
     let _ = a.shutdown().await;
     let _ = b.shutdown().await;
-    log::info!("relay_tcp end");
+    log::debug!("relay_tcp end");
 }
 
 async fn copy_tcp<R: AsyncRead + Unpin, W: AsyncWrite + Unpin>(
@@ -106,11 +106,6 @@ async fn copy_tcp<R: AsyncRead + Unpin, W: AsyncWrite + Unpin>(
         if len == 0 {
             break;
         }
-        log::info!("[{}] raw buff: ",tag);
-        //for i in &buf[..len] {
-        //    print!("{:#X} ",i);
-        //}
-        //println!("");
         
         w.write(&buf[..len]).await?;
         w.flush().await?;

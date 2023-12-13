@@ -8,3 +8,6 @@ edition = "2021"
 [dependencies]
 trojan_rust = { path = "../../" }
 tokio = { version = "1", features = ["full"] }
+clap = { version = "4.4.11", features = ["derive"]}
+log = "0.4.17"
+env_logger = "0.9.0"

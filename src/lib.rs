@@ -17,10 +17,6 @@ pub struct Proxy {
 
 impl Proxy {
     pub fn new(client_addr: &str,client_port: u16,server_addr:&str,server_port:u16,passwd: &str,sni: &str) ->Self {
-        if let Err(_) = env_logger::builder().filter_level(log::LevelFilter::Debug).try_init(){
-            log::info!("log has init.");
-        }
-
         Self { 
             client_addr: client_addr.to_string(), 
             client_port, 

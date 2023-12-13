@@ -33,7 +33,7 @@ impl Socks5Acceptor {
 
     pub async fn accept(&self) -> io::Result<(TcpStream,IpAddress)> {
         let (mut stream, addr) = self.tcp_listener.accept().await?;
-        log::info!("socks5 stream from address {}", addr);
+        log::debug!("socks5 stream from address {}", addr);
         let request = Self::parser_auth(&mut stream).await?;
         if !request.methods.contains(&AUTH_METHOD_NONE) {
             return Err(io::Error::new(io::ErrorKind::InvalidData, format!("request contains invalid method:{}",AUTH_METHOD_NONE)));
@@ -52,14 +52,14 @@ impl Socks5Acceptor {
         };
     
         let nm_method = rd.read_u8().await?;
-        log::info!("nm_method: {}",nm_method);
+        log::debug!("nm_method: {}",nm_method);
     
         let mut methods = Vec::new();
         for _ in 0..nm_method {
             let method_index = rd.read_u8().await?;
             methods.push(method_index);
         }
-        log::info!("methods: {:#?}",methods);
+        log::debug!("methods: {:#?}",methods);
     
         return Ok(RequestAuth{_version:version,_nm_method:nm_method,methods});
     }
@@ -79,15 +79,15 @@ impl Socks5Acceptor {
     
         // Read command byte
         let command = rd.read_u8().await?;
-        log::info!("command: {}",command);
+        log::debug!("command: {}",command);
     
         // Don't do anything about rsv
         let rsv = rd.read_u8().await?;
-        log::info!("rsv: {}",rsv);
+        log::debug!("rsv: {}",rsv);
     
         // Read address type
         let atype = rd.read_u8().await?;
-        log::info!("atype: {}",atype);
+        log::debug!("atype: {}",atype);
     
         // Get address size and address object
         let addr = match atype {
@@ -122,7 +122,7 @@ impl Socks5Acceptor {
                 return Err(io::Error::new(io::ErrorKind::InvalidData,format!("atype({}) is not vaild",atype)));
             }
         };
-        log::info!("addr: {}",addr);
+        log::debug!("addr: {}",addr);
     
         Ok(Request{version, command, rsv, atype, addr})
     }
