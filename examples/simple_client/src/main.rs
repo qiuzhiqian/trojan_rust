@@ -5,6 +5,8 @@ use std::path::PathBuf;
 use clap::Parser;
 use std::io::BufRead;
 
+mod config;
+
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
@@ -40,7 +42,12 @@ fn main() {
     let cli = Cli::parse();
 
     let (client, client_port, server, server_port, password, sni) = match cli.config.as_deref() {
-        Some(config_path) => ("".to_string(), 1080, "".to_string(), 443, "".to_string(), "".to_string()),
+        Some(config_path) => {
+            let path_str = config_path.to_str().expect("file is not exist");
+            log::info!("config path: {}", path_str);
+            let c = config::Config::from_file(path_str).expect("file format is error");
+            (c.client, c.client_port, c.server, c.server_port, c.password, c.sni)
+        },
         None => {
             let client = cli.client.as_deref().unwrap();
             let (client_addr, client_port) = match client.find(":") {
