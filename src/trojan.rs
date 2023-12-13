@@ -92,7 +92,6 @@ pub async fn relay_tcp<T: AsyncRead + AsyncWrite + Unpin + Send,U:AsyncRead + As
     let mut b = b_rx.unsplit(b_tx);
     let _ = a.shutdown().await;
     let _ = b.shutdown().await;
-    log::debug!("relay_tcp end");
 }
 
 async fn copy_tcp<R: AsyncRead + Unpin, W: AsyncWrite + Unpin>(

@@ -35,16 +35,22 @@ impl Proxy {
         loop {
             log::info!("do accept");
             tokio::select! {
-                Ok((mut stream,addr))  = acceptor.accept() => {
-                    log::info!("Received new connection from {}", addr);
-                    let tls_connector = tls::TrojanTlsConnector::new(&self.sni, &self.server_addr,self.server_port)?;
-                    let mut connector = trojan::TrojanConnector::new(self.passwd.as_bytes(), tls_connector)?;
-                    let trojan_stream = connector.connect(&addr).await.expect("connect failed.");
-                    socks5::Socks5Acceptor::request_ack(&mut stream).await?;
-                    log::info!("socks5 connect success");
-                    tokio::spawn(async move {
-                        trojan::relay_tcp(trojan_stream,stream).await;
-                    });
+                accept  = acceptor.accept() => {
+                    match accept {
+                        Ok((mut stream,addr)) => {
+                            log::info!("Received new connection from {}", addr);
+                            let tls_connector = tls::TrojanTlsConnector::new(&self.sni, &self.server_addr,self.server_port)?;
+                            let mut connector = trojan::TrojanConnector::new(self.passwd.as_bytes(), tls_connector)?;
+                            let trojan_stream = connector.connect(&addr).await.expect("connect failed.");
+                            socks5::Socks5Acceptor::request_ack(&mut stream).await?;
+                            log::info!("{}: socks5 connect success", addr);
+                            tokio::spawn(async move {
+                                trojan::relay_tcp(trojan_stream,stream).await;
+                                log::info!("{} connection end", addr)
+                            });
+                        },
+                        Err(e) => log::debug!("accept has error {}",e),
+                    };
                 },
                 _ = recv.recv() => {
                     log::info!("receive stop signal.");
