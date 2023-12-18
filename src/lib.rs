@@ -41,7 +41,7 @@ impl Proxy {
                             log::info!("Received new connection from {}", addr);
                             let tls_connector = tls::TrojanTlsConnector::new(&self.sni, &self.server_addr,self.server_port)?;
                             let mut connector = trojan::TrojanConnector::new(self.passwd.as_bytes(), tls_connector)?;
-                            let trojan_stream = connector.connect(&addr).await.expect("connect failed.");
+                            let trojan_stream = connector.connect(&addr).await?;
                             socks5::Socks5Acceptor::request_ack(&mut stream).await?;
                             log::info!("{}: socks5 connect success", addr);
                             tokio::spawn(async move {
