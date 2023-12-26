@@ -91,7 +91,7 @@ fn main() {
             server_port,
             &password,
             &sni);
-    rt.block_on(async {
+    rt.spawn(async move{
         proxy.start(&mut rx).await;
     });
 

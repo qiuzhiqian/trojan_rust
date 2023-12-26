@@ -1,4 +1,4 @@
-use rustls::client::ServerName;
+use rustls::pki_types::ServerName;
 use rustls::{ClientConfig,RootCertStore};
 use tokio::{io, net::TcpStream};
 use tokio_rustls::TlsConnector;
@@ -14,16 +14,12 @@ pub struct TrojanTlsConnector {
 impl TrojanTlsConnector {
     pub fn new(sni:&str,server_addr: &str,server_port: u16) -> io::Result<Self> {
         let mut root_store = RootCertStore::empty();
-        root_store.add_server_trust_anchors(webpki_roots::TLS_SERVER_ROOTS.0.iter().map(|ta| {
-            rustls::OwnedTrustAnchor::from_subject_spki_name_constraints(
-                ta.subject,
-                ta.spki,
-                ta.name_constraints,
-            )
-        }));
+        for cert in rustls_native_certs::load_native_certs().expect("could not load platform certs") {
+            root_store.add(cert).unwrap();
+        }
+        //root_store.extend(webpki_roots::TLS_SERVER_ROOTS.iter().cloned());
 
         let config = ClientConfig::builder()
-            .with_safe_defaults()
             .with_root_certificates(root_store)
             .with_no_client_auth();
 
@@ -39,14 +35,13 @@ impl TrojanTlsConnector {
     }
 
     pub async fn connect_tcp(&self) -> io::Result<TlsStream<TcpStream>> {
-        let stream = TcpStream::connect(&self.server_addr).await?;
-        stream.set_nodelay(true)?;
-
-        let dns_name = ServerName::try_from(self.sni.as_ref()).expect("Failed to parse host name");
-        let stream = TlsConnector::from(self.tls_config.clone())
-            .connect(dns_name, stream)
-            .await?;
-
+        let connector = TlsConnector::from(self.tls_config.clone());
+        let s = TcpStream::connect(&self.server_addr).await?;
+        s.set_nodelay(true)?;
+        let dns_name: ServerName = ServerName::try_from(self.sni.clone())
+            .map_err(|_| io::Error::new(io::ErrorKind::InvalidInput, "invalid dnsname"))?
+            .to_owned();
+        let stream = connector.connect(dns_name, s).await?;
         Ok(stream)
     }
 }
