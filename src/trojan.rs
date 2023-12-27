@@ -15,9 +15,9 @@ pub struct TrojanConnector {
     hash: [u8; HASH_STR_LEN],
 }
 
-enum TROJAN_CMD {
+enum TrojanCmd {
     CONNECT = 0x01,
-    UDP = 0x03,
+    _UDP = 0x03,
 }
 
 impl TrojanConnector {
@@ -36,7 +36,7 @@ impl TrojanConnector {
     }
     pub async fn connect(&mut self,addr:&IpAddress) -> io::Result<TlsStream<tokio::net::TcpStream>> {
         let mut stream = self.inner.connect_tcp().await?;
-        handshake(&mut stream,self.hash[..].as_mut(),TROJAN_CMD::CONNECT,addr).await?;
+        handshake(&mut stream,self.hash[..].as_mut(),TrojanCmd::CONNECT,addr).await?;
         Ok(stream)
     }
 }
@@ -44,7 +44,7 @@ impl TrojanConnector {
 async fn handshake<T: AsyncWrite + Unpin>(
     stream: &mut T,
     passwd: &[u8],
-    command: TROJAN_CMD,
+    command: TrojanCmd,
     addr: &IpAddress,
 ) -> io::Result<()> {
     // Write request header
@@ -97,7 +97,7 @@ pub async fn relay_tcp<T: AsyncRead + AsyncWrite + Unpin + Send,U:AsyncRead + As
 async fn copy_tcp<R: AsyncRead + Unpin, W: AsyncWrite + Unpin>(
     r: &mut R,
     w: &mut W,
-    tag: &str,
+    _tag: &str,
 ) -> io::Result<()> {
     let mut buf = [0u8; 16384];
     loop {
