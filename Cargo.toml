@@ -1,6 +1,14 @@
 [package]
 name = "trojan_rust"
 version = "0.1.0"
+authors = ["qiuzhiqian <xiamengliang@gmail.com>"]
+description = "A library and tool for trojan proxy"
+readme = "README.md"
+homepage = "https://github.com/qiuzhiqian/trojan_rust"
+repository = "https://github.com/qiuzhiqian/trojan_rust"
+keywords = ["library", "trojan", "proxy", "cli"]
+categories = ["web-programming"]
+license = "MIT"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -17,4 +25,3 @@ rustls-native-certs = "0.7.0"
 tokio-rustls = "0.25"
 log = "0.4.17"
 bytes = "1.3.0"
-http = "0.2.9"
